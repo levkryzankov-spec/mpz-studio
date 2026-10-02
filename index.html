@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPZ Studio — свободный плеер для форматов .mpz и .vpz</title>
+<meta name="description" content="MPZ Studio — свободный плеер и конструктор для форматов .mpz (музыка) и .vpz (видео). Обложки, тексты, субтитры, эффекты — всё в одном файле.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0e;
+  --bg-2: #121218;
+  --panel: #18181d;
+  --panel-2: #202028;
+  --border: #2a2a33;
+  --text: #eaeaf0;
+  --dim: #8a8a97;
+  --accent: #7c5cff;
+  --accent-2: #4ade80;
+  --accent-3: #38bdf8;
+  --danger: #ff5c5c;
+  --grad: linear-gradient(135deg, #7c5cff 0%, #38bdf8 100%);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ============= ФОНОВЫЕ ПЯТНА ============= */
+body::before {
+  content: "";
+  position: fixed;
+  top: -300px; left: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(124,92,255,.15) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: "";
+  position: fixed;
+  bottom: -300px; right: -200px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(56,189,248,.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ============= НАВИГАЦИЯ ============= */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10,10,14,.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+nav .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.logo .mark {
+  width: 28px; height: 28px;
+  background: var(--grad);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.nav-links {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.nav-links a {
+  color: var(--dim);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all .15s;
+}
+.nav-links a:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+/* ============= ГЛАВНЫЙ БЛОК ============= */
+.hero {
+  padding: 90px 0 70px;
+  text-align: center;
+  position: relative;
+}
+.hero .container { position: relative; }
+.hero-badge {
+  display: inline-block;
+  background: rgba(124,92,255,.15);
+  color: var(--accent);
+  border: 1px solid rgba(124,92,255,.3);
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 22px;
+  letter-spacing: .02em;
+}
+.hero h1 {
+  font-size: clamp(32px, 6vw, 56px);
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 20px;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, #fff 0%, #b0b0c0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero h1 .accent {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: clamp(15px, 2vw, 19px);
+  color: var(--dim);
+  max-width: 640px;
+  margin: 0 auto 34px;
+}
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(124,92,255,.35);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(124,92,255,.5);
+}
+.btn-ghost {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  background: var(--panel-2);
+  border-color: var(--accent);
+}
+
+.hero-preview {
+  margin-top: 60px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  background: var(--panel);
+  aspect-ratio: 16 / 9;
+  position: relative;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero-preview-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preview-topbar {
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.preview-topbar .title { font-weight: 600; }
+.preview-topbar .actions { display: flex; gap: 6px; }
+.preview-topbar .pill {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  background: var(--panel-2);
+  color: var(--dim);
+}
+.preview-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  overflow: hidden;
+}
+.preview-side {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 10px;
+}
+.preview-side .item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+.preview-side .item.active {
+  background: var(--accent);
+  color: #fff;
+}
+.preview-main {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.preview-cover {
+  width: 120px; height: 120px;
+  border-radius: 12px;
+  background: var(--grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+.preview-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.preview-artist {
+  font-size: 11px;
+  color: var(--dim);
+}
+.preview-bar {
+  width: 100%;
+  max-width: 320px;
+  height: 4px;
+  background: var(--panel-2);
+  border-radius: 2px;
+  position: relative;
+  margin-top: 8px;
+}
+.preview-bar::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 35%;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.preview-bar::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 35%;
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(124,92,255,.25);
+}
+
+/* ============= СЕКЦИИ ============= */
+section { padding: 70px 0; position: relative; z-index: 1; }
+.section-title {
+  font-size: 11px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.section-heading {
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 14px;
+  letter-spacing: -.01em;
+}
+.section-sub {
+  text-align: center;
+  color: var(--dim);
+  max-width: 600px;
+  margin: 0 auto 50px;
+  font-size: 15px;
+}
+
+/* ============= ФИЧИ ============= */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.feature {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all .2s;
+}
+.feature:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(124,92,255,.15);
+}
+.feature-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: rgba(124,92,255,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 14px;
+}
+.feature h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.feature p {
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.6;
+}
+
+/* ============= ФОРМАТЫ ============= */
+.formats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 760px) { .formats { grid-template-columns: 1fr; } }
+
+.format-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  overflow: hidden;
+}
+.format-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.format-card .badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: .05em;
+}
+.format-card.mpz .badge { background: rgba(124,92,255,.15); color: var(--accent); }
+.format-card.vpz .badge { background: rgba(56,189,248,.15); color: var(--accent-3); }
+.format-card .desc {
+  font-size: 13px;
+  color: var(--dim);
+  margin-bottom: 16px;
+}
+.code-block {
+  background: #0a0a0e;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: #b0b0c0;
+  overflow-x: auto;
+  white-space: pre;
+}
+.code-block .folder { color: var(--accent); font-weight: 600; }
+.code-block .file   { color: var(--text); }
+.code-block .dim    { color: #5a5a6a; }
+.code-block .comment{ color: #5a5a6a; font-style: italic; }
+
+/* ============= УСТАНОВКА ============= */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.step {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+}
+.step-num {
+  position: absolute;
+  top: -14px;
+  left: 24px;
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+.step h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 12px 0 8px;
+}
+.step p {
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.6;
+}
+.step code {
+  display: inline-block;
+  background: #0a0a0e;
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--accent-3);
+  margin: 3px 0;
+}
+
+/* ============= СКАЧАТЬ ============= */
+.download-section {
+  text-align: center;
+  background: linear-gradient(180deg, transparent 0%, rgba(124,92,255,.05) 100%);
+  border-radius: 24px;
+  padding: 60px 24px;
+  border: 1px solid var(--border);
+}
+.download-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.dl-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all .2s;
+  display: block;
+}
+.dl-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(124,92,255,.2);
+}
+.dl-card .os-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+.dl-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.dl-card p {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* ============= FAQ ============= */
+.faq {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.faq-item {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.faq-q {
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.faq-q::after {
+  content: "+";
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 400;
+  transition: transform .2s;
+}
+.faq-item.open .faq-q::after { transform: rotate(45deg); }
+.faq-a {
+  padding: 0 20px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .3s, padding .3s;
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.7;
+}
+.faq-item.open .faq-a {
+  padding: 0 20px 16px;
+  max-height: 400px;
+}
+
+/* ============= FOOTER ============= */
+footer {
+  padding: 40px 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--dim);
+  font-size: 13px;
+  position: relative;
+  z-index: 1;
+}
+footer a {
+  color: var(--dim);
+  text-decoration: none;
+  margin: 0 8px;
+}
+footer a:hover { color: var(--accent); }
+
+/* ============= АДАПТИВ ============= */
+@media (max-width: 700px) {
+  .hero { padding: 50px 0 40px; }
+  .preview-body { grid-template-columns: 1fr; }
+  .preview-side { display: none; }
+  nav .container { padding: 12px 16px; }
+  .nav-links a { padding: 5px 8px; font-size: 12px; }
+  section { padding: 50px 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ НАВИГАЦИЯ ============ -->
+<nav>
+  <div class="container">
+    <a href="#" class="logo">
+      <span class="mark">🎵</span>
+      MPZ Studio
+    </a>
+    <div class="nav-links">
+      <a href="#features">Возможности</a>
+      <a href="#formats">Форматы</a>
+      <a href="#install">Установка</a>
+      <a href="#download">Скачать</a>
+      <a href="#faq">FAQ</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="container">
+    <div class="hero-badge">🚀 Альфа · v0.1.0</div>
+    <h1>
+      Твой плеер для форматов<br>
+      <span class="accent">.mpz</span> и <span class="accent">.vpz</span>
+    </h1>
+    <p>
+      Музыка и видео с обложкой, текстом, субтитрами и эффектами —
+      всё в одном файле. Свободно, оффлайн, без рекламы.
+    </p>
+    <div class="hero-actions">
+      <a href="#download" class="btn btn-primary">⬇ Скачать бесплатно</a>
+      <a href="#features" class="btn btn-ghost">📖 Что это?</a>
+    </div>
+
+    <div class="hero-preview">
+      <div class="hero-preview-inner">
+        <div class="preview-topbar">
+          <span class="title">🎵 MPZ / VPZ Player</span>
+          <div class="actions">
+            <span class="pill">➕ Создать пакет</span>
+            <span class="pill">📂 Открыть пакет</span>
+          </div>
+        </div>
+        <div class="preview-body">
+          <div class="preview-side">
+            <div class="item active">Крутой</div>
+            <div class="item">Пацан</div>
+            <div class="item">Сильный</div>
+          </div>
+          <div class="preview-main">
+            <div class="preview-cover">🎵</div>
+            <div class="preview-title">Крутой</div>
+            <div class="preview-artist">Артём218 · Пацан</div>
+            <div class="preview-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ ФИЧИ ============ -->
+<section id="features">
+  <div class="container">
+    <div class="section-title">Возможности</div>
+    <h2 class="section-heading">Всё, что нужно от плеера</h2>
+    <p class="section-sub">
+      Не просто воспроизведение. Полноценный контейнер для твоей музыки и видео.
+    </p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🎵</div>
+        <h3>Аудио в 3 качествах</h3>
+        <p>MQ (192 kbps), HQ (320 kbps), Hi-Fi (440 kbps) — плеер сам выберет лучшее, ты можешь переключить на лету.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🎬</div>
+        <h3>Видео 480p / 720p / 1080p</h3>
+        <p>Смотри в любом разрешении. Субтитры поверх видео, главы для быстрой навигации.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🎛</div>
+        <h3>Bass Boost и скорость</h3>
+        <p>Усиление баса до +18 дБ и скорость 0.5×–2× с изменением тона. Как у винила.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">📝</div>
+        <h3>Синхронизация текста</h3>
+        <p>LRC, TTML, VTT, SRT. Активная строка подсвечивается и скроллится автоматически.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🖼</div>
+        <h3>Обложки в любом формате</h3>
+        <p>JPG, PNG, WebP. Показываются в высоком качестве, поддерживают прозрачность.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🔊</div>
+        <h3>Soundpack</h3>
+        <p>Минус, акапелла, комментарий автора, дубляжи на разных языках — все дорожки в одном файле.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">➕</div>
+        <h3>Конструктор внутри</h3>
+        <p>Создавай .mpz и .vpz прямо в приложении — без сторонних программ.</p>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">💻</div>
+        <h3>Кроссплатформа</h3>
+        <p>Windows, и пока что всё. Также есть веб-версия — открывается в браузере без установки, если нужно можно открыть редактор</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ФОРМАТЫ ============ -->
+<section id="formats">
+  <div class="container">
+    <div class="section-title">Форматы</div>
+    <h2 class="section-heading">Что такое .mpz и .vpz</h2>
+    <p class="section-sub">
+      Открытые форматы на основе ZIP. Внутри — вся музыка и видео в одном файле.
+    </p>
+
+    <div class="formats">
+      <div class="format-card mpz">
+        <h3>🎵 .mpz <span class="badge">AUDIO</span></h3>
+        <p class="desc">Music Parent Zip-pack — музыкальный пакет</p>
+        <div class="code-block"><span class="folder">music1/</span>
+├── <span class="file">meta-data</span>         <span class="comment"># название, исполнитель, год</span>
+├── <span class="folder">cover/</span>
+│   └── <span class="file">cover.jpg</span>
+├── <span class="folder">music/</span>
+│   ├── <span class="file">music.mp192</span>     <span class="comment"># MQ</span>
+│   ├── <span class="file">music.mp3</span>        <span class="comment"># HQ</span>
+│   └── <span class="file">music.ogg</span>        <span class="comment"># Hi-Fi</span>
+├── <span class="folder">soundpack/</span>           <span class="comment"># опционально</span>
+├── <span class="folder">lyrics/</span>
+│   └── <span class="file">track_01.lrc</span>
+└── <span class="folder">extras/</span>
+    └── <span class="file">credits.txt</span></div>
+      </div>
+
+      <div class="format-card vpz">
+        <h3>🎥 .vpz <span class="badge">VIDEO</span></h3>
+        <p class="desc">Video Parent Zip-pack — видео-пакет</p>
+        <div class="code-block"><span class="folder">video1/</span>
+├── <span class="file">meta-data</span>         <span class="comment"># название, автор, главы</span>
+├── <span class="folder">cover/</span>
+│   └── <span class="file">cover.jpg</span>
+├── <span class="folder">video/</span>
+│   ├── <span class="file">video_480.mp4</span>
+│   ├── <span class="file">video_720.mp4</span>
+│   └── <span class="file">video_1080.mp4</span>
+├── <span class="folder">soundpack/</span>           <span class="comment"># дубляжи</span>
+├── <span class="folder">subtitles/</span>
+│   └── <span class="file">track_01.ttml</span>
+└── <span class="folder">extras/</span>
+    └── <span class="file">chapters.json</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ УСТАНОВКА ============ -->
+<section id="install">
+  <div class="container">
+    <div class="section-title">Установка</div>
+    <h2 class="section-heading">Запуск за 2 минуты</h2>
+    <p class="section-sub">
+      Никаких сложных настроек. Скачал — запустил — слушаешь.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Скачай .exe</h3>
+        <p>Скачай <code>MPZ-Player.exe</code> из раздела «Скачать». Работает на Windows 10/11.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Запусти установщик</h3>
+        <p>Положи рядом с <code>.exe</code> файлы иконок и <code>install_filetype.bat</code>. Запусти его от имени администратора.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Слушай и смотри</h3>
+        <p>Теперь двойной клик по любому <code>.mpz</code> или <code>.vpz</code> — плеер откроется сам.</p>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:40px; color:var(--dim); font-size:13px;">
+      Нет Windows? Плеер работает и из исходников на Python:<br>
+      <code style="display:inline-block; margin-top:8px; background:#0a0a0e; padding:6px 12px; border-radius:6px; font-family:ui-monospace,Consolas,monospace;">pip install pywebview && python run_mpz.py</code>
+    </p>
+  </div>
+</section>
+
+<!-- ============ СКАЧАТЬ ============ -->
+<section id="download">
+  <div class="container">
+    <div class="download-section">
+      <div class="section-title">Скачать</div>
+      <h2 class="section-heading">MPZ Studio v0.1.0-alpha</h2>
+      <p class="section-sub">
+        Свободное ПО. Открытый исходный код. Без рекламы и регистрации.
+      </p>
+
+      <div class="download-cards">
+        <a href="#" class="dl-card" onclick="alert('Ссылка на скачивание появится после публикации релиза на GitHub.'); return false;">
+          <div class="os-icon">🪟</div>
+          <h3>Windows</h3>
+          <p>.exe · 13,1 МБ</p>
+        </a>
+        <a href="player.html" class="dl-card">
+          <div class="os-icon">🌐</div>
+          <h3>Веб-версия</h3>
+          <p>Открыть в браузере</p>
+        </a>
+        <a href="creator.html" class="dl-card">
+          <div class="os-icon">🛠️</div>
+          <h3>Веб-редактор</h3>
+          <p>Открыть в браузере</p>
+        </a>
+      </div>
+
+      <p style="margin-top:32px; font-size:12px; color:var(--dim);">
+        Сделано на Python + HTML (CSS + JavaScript)
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq">
+  <div class="container">
+    <div class="section-title">FAQ</div>
+    <h2 class="section-heading">Частые вопросы</h2>
+    <p class="section-sub">Коротко о главном.</p>
+
+    <div class="faq">
+      <div class="faq-item">
+        <div class="faq-q">Что такое .mpz и .vpz?</div>
+        <div class="faq-a">
+          Это открытые форматы на основе ZIP. Внутри — музыка или видео, обложка,
+          текст песни (или субтитры), метаданные и дополнительные дорожки.
+          Всё в одном файле: удобно хранить, пересылать, слушать оффлайн.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Это безопасно?</div>
+        <div class="faq-a">
+          Да. Плеер полностью оффлайн, не отправляет данные никуда. Тут безопасно, рекламы нету!
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Работает ли bass boost для видео?</div>
+        <div class="faq-a">
+          Нет. Bass Boost и изменение тона при смене скорости работают только для аудио-треков (.mpz).
+          Для видео эффекты отключены — браузерные движки не умеют обрабатывать видео-звук в реальном времени.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Какие видео-форматы поддерживаются?</div>
+        <div class="faq-a">
+          H.264 (AVC) + AAC в контейнере .mp4 — самый распространённый. Другие кодеки
+          (HEVC, AV1, VP9) могут не воспроизводиться в WebView2. MKV не поддерживается.
+          Если видео не играет — перекодируй в H.264 + AAC через HandBrake или ffmpeg.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Как сделать свой .mpz или .vpz?</div>
+        <div class="faq-a">
+          Открой редактор, затем создай и нажми "💾Собрать и скачать .*формат*". И всё готово!
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">На чём сделано?</div>
+        <div class="faq-a">
+          Python + pywebview (WebView2 на Windows). Интерфейс — HTML + CSS + JavaScript.
+          Вся обработка звука — Web Audio API. Упаковка в ZIP — JSZip.
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Можно ли использовать коммерчески?</div>
+        <div class="faq-a">
+          Нет. У меня собственная лицензия LEVOMR-MPZ, я не хочу чтобы проект брали, а если возьмут то упоминайте меня, и лецензию ставьте не MIT!
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="container">
+    <p style="margin-bottom:12px;">MPZ Studio · v0.1.0-alpha · Октябрь 2026</p>
+    <p>
+      <a href="#faq">FAQ</a>
+    </p>
+    <p style="margin-top:16px; font-size:11px; opacity:.6;">
+      Сделано с ❤️ для тех, кто любит свою музыку.
+    </p>
+  </div>
+</footer>
+
+<script>
+/* FAQ аккордеон */
+document.querySelectorAll(".faq-q").forEach(q => {
+  q.addEventListener("click", () => {
+    const item = q.parentElement;
+    const wasOpen = item.classList.contains("open");
+    document.querySelectorAll(".faq-item").forEach(i => i.classList.remove("open"));
+    if (!wasOpen) item.classList.add("open");
+  });
+});
+
+/* Плавное появление секций */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = "1";
+      e.target.style.transform = "translateY(0)";
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll("section").forEach(s => {
+  s.style.opacity = "0";
+  s.style.transform = "translateY(20px)";
+  s.style.transition = "opacity .6s, transform .6s";
+  observer.observe(s);
+});
+</script>
+</body>
+</html>
