@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPZ / VPZ Creator</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#0f0f12; --panel:#18181d; --panel-2:#202028; --panel-3:#26262f;
+  --accent:#7c5cff; --accent-2:#4ade80; --accent-3:#38bdf8;
+  --danger:#ff5c5c; --text:#eaeaf0; --dim:#8a8a97; --border:#2a2a33;
+}
+html, body { min-height: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; min-height: 100vh;
+}
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 22px; background: var(--panel);
+  border-bottom: 1px solid var(--border); gap: 12px; flex-wrap: wrap;
+}
+.topbar h1 { font-size: 17px; font-weight: 600; }
+.topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.type-switch {
+  display: inline-flex; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 3px; gap: 2px;
+}
+.type-switch button {
+  border: none; background: transparent; color: var(--dim);
+  padding: 7px 16px; border-radius: 7px; cursor: pointer;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  transition: all .15s;
+}
+.type-switch button:hover { color: var(--text); }
+.type-switch button.active { background: var(--accent); color: #fff; }
+.type-switch button[data-type="vpz"].active { background: var(--accent-3); color: #06222e; }
+.btn {
+  border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 500; display: inline-flex; align-items: center;
+  gap: 6px; white-space: nowrap; font-family: inherit;
+  transition: opacity .15s, transform .1s;
+}
+.btn:hover { opacity: .88; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-success { background: var(--accent-2); color: #06210f; }
+.btn-info    { background: var(--accent-3); color: #06222e; }
+.btn-ghost   { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+.btn-sm      { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.layout {
+  display: grid; grid-template-columns: 1fr 380px;
+  flex: 1; overflow: hidden; min-height: 0;
+}
+.col-form { padding: 22px; overflow-y: auto; min-height: 0; }
+.col-form::-webkit-scrollbar { width: 8px; }
+.col-form::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 16px;
+}
+.card h2 {
+  font-size: 13px; color: var(--dim); text-transform: uppercase;
+  letter-spacing: .08em; margin-bottom: 14px; font-weight: 600;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; color: var(--dim); }
+.field input[type="text"],
+.field input[type="number"],
+.field textarea {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; font-size: 13px; font-family: inherit;
+  width: 100%; transition: border-color .15s;
+}
+.field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+.field textarea { resize: vertical; min-height: 70px; }
+.file-drop {
+  background: var(--panel-2); border: 1.5px dashed var(--border);
+  border-radius: 8px; padding: 14px 16px; font-size: 13px;
+  color: var(--dim); cursor: pointer; text-align: center;
+  display: block; transition: all .15s;
+}
+.file-drop:hover { border-color: var(--accent); color: var(--text); }
+.file-drop.filled {
+  border-style: solid; color: var(--accent-2);
+  border-color: var(--accent-2); background: rgba(74, 222, 128, .05);
+}
+.file-drop .fd-hint { font-size: 11px; opacity: .6; display: block; margin-top: 3px; }
+.hint { font-size: 12px; color: var(--dim); line-height: 1.5; margin-top: 4px; }
+.col-queue {
+  background: var(--panel); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.queue-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.queue-header h2 { font-size: 14px; }
+.queue-header .badge {
+  background: var(--accent); color: #fff; border-radius: 10px;
+  padding: 2px 9px; font-size: 11px; font-weight: 600;
+}
+.queue-list { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
+.queue-list::-webkit-scrollbar { width: 6px; }
+.queue-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.queue-empty {
+  color: var(--dim); text-align: center;
+  padding: 40px 20px; font-size: 13px; line-height: 1.6;
+}
+.queue-item {
+  display: flex; gap: 10px; padding: 10px; border-radius: 10px;
+  background: var(--panel-2); margin-bottom: 8px; align-items: center;
+}
+.queue-item:hover { background: var(--panel-3); }
+.queue-item img {
+  width: 44px; height: 44px; border-radius: 8px;
+  object-fit: cover; background: var(--panel); flex-shrink: 0;
+}
+.queue-item .qi-meta { flex: 1; min-width: 0; }
+.queue-item .qi-title {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.queue-item .qi-sub {
+  font-size: 11px; color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+}
+.queue-item .qi-remove {
+  background: transparent; border: none; color: var(--dim);
+  cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 6px;
+}
+.queue-item .qi-remove:hover { color: var(--danger); background: rgba(255,92,92,.1); }
+.queue-footer {
+  padding: 14px 18px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.queue-footer .btn { justify-content: center; width: 100%; }
+.status {
+  padding: 8px 22px; background: var(--panel);
+  border-top: 1px solid var(--border); font-size: 12px; color: var(--dim);
+}
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 16px; width: 100%; max-width: 480px; padding: 22px;
+}
+.modal h3 { font-size: 16px; margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--dim); margin-bottom: 16px; }
+.export-choice { display: flex; flex-direction: column; gap: 8px; }
+.export-choice button {
+  padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); cursor: pointer;
+  font-size: 13px; text-align: left; font-family: inherit;
+}
+.export-choice button:hover { border-color: var(--accent); background: var(--panel-3); }
+.export-choice button b { display: block; font-size: 14px; margin-bottom: 2px; }
+.export-choice button span { font-size: 11px; color: var(--dim); }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .col-queue { border-left: none; border-top: 1px solid var(--border); max-height: 40vh; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .full { grid-column: auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <h1>📦 Creator</h1>
+    <div class="type-switch" id="typeSwitch">
+      <button data-type="mpz" class="active">🎵 MPZ</button>
+      <button data-type="vpz">🎥 VPZ</button>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <label class="btn btn-info btn-sm">
+      <input type="file" id="importInput" accept=".mpz,.vpz,.mp1m,.zip" style="display:none">
+      📥 Импорт пакета
+    </label>
+    <button class="btn btn-ghost btn-sm" id="clearAllBtn">🗑 Очистить всё</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <main class="col-form">
+
+    <!-- ОБЩЕЕ -->
+    <div class="card">
+      <h2>Основное</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label id="lblTitle">Название трека *</label>
+          <input type="text" id="fTitle" placeholder="Название">
+        </div>
+        <div class="field">
+          <label id="lblArtist">Исполнитель *</label>
+          <input type="text" id="fArtist" placeholder="Исполнитель">
+        </div>
+        <div class="field">
+          <label id="lblAlbum">Альбом</label>
+          <input type="text" id="fAlbum" placeholder="Альбом">
+        </div>
+        <div class="field">
+          <label>Год</label>
+          <input type="number" id="fYear" placeholder="2026" min="1900" max="2100">
+        </div>
+        <div class="field full">
+          <label id="lblGenre">Жанр (через запятую)</label>
+          <input type="text" id="fGenre" placeholder="Electronic, Synthwave">
+        </div>
+        <div class="field full">
+          <label>Обложка (JPG / PNG / WebP)</label>
+          <label class="file-drop" id="dropCover">
+            <input type="file" id="fCover" accept="image/jpeg,image/png,image/webp" style="display:none">
+            <span class="cover-text">Нажмите, чтобы выбрать обложку</span>
+            <span class="fd-hint" id="coverHint">Рекомендуется квадратная, от 640×640</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- МУЗЫКА -->
+    <div class="card" id="musicCard">
+      <h2>Музыка (music/) — можно любое сочетание</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label>MQ — 192 kbps</label>
+          <label class="file-drop" id="dropMq">
+            <input type="file" id="fMq" accept="audio/*,.mp192" style="display:none">
+            <span class="fd-text">music.mp192</span>
+            <span class="fd-hint">Среднее качество</span>
+          </label>
+        </div>
+        <div class="field">
+          <label>HQ — 320 kbps</label>
+          <label class="file-drop" id="dropHq">
+            <input type="file" id="fHq" accept="audio/*" style="display:none">
+            <span class="fd-text">music.mp3</span>
+            <span class="fd-hint">Высокое качество</span>
+          </label>
+        </div>
+        <div class="field full">
+          <label>Hi-Fi — 440 kbps</label>
+          <label class="file-drop" id="dropHifi">
+            <input type="file" id="fHifi" accept="audio/*,.ogg" style="display:none">
+            <span class="fd-text">music.ogg</span>
+            <span class="fd-hint">Максимальное качество</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ВИДЕО -->
+    <div class="card" id="videoCard" style="display:none;">
+      <h2>Видео (video/) — можно любое сочетание</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label>480p — Mobile</label>
+          <label class="file-drop" id="dropV480">
+            <input type="file" id="fV480" accept="video/*,.mp4" style="display:none">
+            <span class="fd-text">video_480.mp4</span>
+          </label>
+        </div>
+        <div class="field">
+          <label>720p — HD</label>
+          <label class="file-drop" id="dropV720">
+            <input type="file" id="fV720" accept="video/*,.mp4" style="display:none">
+            <span class="fd-text">video_720.mp4</span>
+          </label>
+        </div>
+        <div class="field full">
+          <label>1080p — Full HD</label>
+          <label class="file-drop" id="dropV1080">
+            <input type="file" id="fV1080" accept="video/*,.mp4" style="display:none">
+            <span class="fd-text">video_1080.mp4</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOUNDPACK -->
+    <div class="card">
+      <h2>soundpack/ — доп. дорожки (ОПЦИОНАЛЬНО)</h2>
+      <p class="hint" id="spHint" style="margin-bottom:12px;"></p>
+      <div class="form-grid">
+        <div class="field">
+          <label id="lblSp1">Инструментал (минус)</label>
+          <label class="file-drop" id="dropInstrumental">
+            <input type="file" id="fInstrumental" accept="audio/*" style="display:none">
+            <span class="fd-text" id="txtInstrumental">instrumental.mp3</span>
+          </label>
+        </div>
+        <div class="field">
+          <label id="lblSp2">Акапелла</label>
+          <label class="file-drop" id="dropAcapella">
+            <input type="file" id="fAcapella" accept="audio/*" style="display:none">
+            <span class="fd-text" id="txtAcapella">acapella.mp3</span>
+          </label>
+        </div>
+        <div class="field full">
+          <label>Комментарий автора</label>
+          <label class="file-drop" id="dropCommentary">
+            <input type="file" id="fCommentary" accept="audio/*" style="display:none">
+            <span class="fd-text">commentary.mp3</span>
+          </label>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" id="addSoundpackBtn" type="button">➕ Добавить свою дорожку</button>
+        <div id="customSoundpacks" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- ТЕКСТ / СУБТИТРЫ -->
+    <div class="card">
+      <h2 id="lyricsCardTitle">Текст песни (lyrics/)</h2>
+      <div class="form-grid">
+        <div class="field full">
+          <label id="lblLyrics">Текст (LRC / TTML / TXT)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+              <input type="file" id="importLrc" accept=".lrc,text/plain" style="display:none"> 📥 .lrc
+            </label>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+              <input type="file" id="importTtml" accept=".ttml,.xml" style="display:none"> 📥 .ttml
+            </label>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+              <input type="file" id="importVtt" accept=".vtt" style="display:none"> 📥 .vtt
+            </label>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+              <input type="file" id="importSrt" accept=".srt" style="display:none"> 📥 .srt
+            </label>
+            <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+              <input type="file" id="importTxt" accept=".txt,text/plain" style="display:none"> 📥 .txt
+            </label>
+            <button class="btn btn-ghost btn-sm" id="clearLyricsBtn" type="button">🗑 Очистить</button>
+          </div>
+          <textarea id="fLyrics" rows="6"></textarea>
+          <div id="lyricsStatus" style="font-size:11px;color:var(--accent-2);margin-top:6px;display:none;"></div>
+        </div>
+
+        <div class="field full" id="chaptersField" style="display:none;">
+          <label>Главы (одна на строку: <code>MM:SS Название</code>)</label>
+          <textarea id="fChapters" rows="4" placeholder="00:00 Вступление&#10;00:40 Теория"></textarea>
+        </div>
+
+        <div class="field full">
+          <label>Credits</label>
+          <textarea id="fCredits" rows="3" placeholder="Авторы, лицензия..."></textarea>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <aside class="col-queue">
+    <div class="queue-header">
+      <h2 id="queueTitle">📚 Очередь треков</h2>
+      <span class="badge" id="queueBadge">0</span>
+    </div>
+    <div class="queue-list" id="queueList">
+      <div class="queue-empty">Очередь пуста.<br>Заполни форму слева.</div>
+    </div>
+    <div class="queue-footer">
+      <button class="btn btn-primary" id="addBtn">➕ Добавить в очередь</button>
+      <button class="btn btn-success" id="buildBtn" disabled>💾 Собрать и скачать .mpz</button>
+    </div>
+  </aside>
+
+</div>
+
+<div class="status" id="status">Готово. Выберите тип: MPZ (музыка) или VPZ (видео).</div>
+
+<div class="modal-bg" id="exportModal">
+  <div class="modal">
+    <h3>💾 Сохранить как…</h3>
+    <p>В очереди <b id="exportCount">1</b> трек.</p>
+    <div class="export-choice">
+      <button id="exportMp1mBtn"><b>🎵 .mp1m</b><span>Одиночный трек</span></button>
+      <button id="exportMpzBtn"><b>📦 .mpz</b><span>Контейнер</span></button>
+    </div>
+    <div style="margin-top:14px;text-align:right;">
+      <button class="btn btn-ghost btn-sm" id="cancelExportBtn">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   MPZ / VPZ Creator — финальная версия
+   ========================================================= */
+
+const $ = (id) => document.getElementById(id);
+
+let packType = "mpz";
+
+/* ---------- Файловые поля (фиксированные ссылки) ---------- */
+const FILE_FIELDS = {
+  cover:        { inputId: "fCover",        dropId: "dropCover",        labelId: "coverText",       defaultLabel: "Нажмите, чтобы выбрать обложку" },
+  mq:           { inputId: "fMq",           dropId: "dropMq",           labelId: null,              defaultLabel: "music.mp192" },
+  hq:           { inputId: "fHq",           dropId: "dropHq",           labelId: null,              defaultLabel: "music.mp3" },
+  hifi:         { inputId: "fHifi",         dropId: "dropHifi",         labelId: null,              defaultLabel: "music.ogg" },
+  v480:         { inputId: "fV480",         dropId: "dropV480",         labelId: null,              defaultLabel: "video_480.mp4" },
+  v720:         { inputId: "fV720",         dropId: "dropV720",         labelId: null,              defaultLabel: "video_720.mp4" },
+  v1080:        { inputId: "fV1080",        dropId: "dropV1080",        labelId: null,              defaultLabel: "video_1080.mp4" },
+  instrumental: { inputId: "fInstrumental", dropId: "dropInstrumental", labelId: "txtInstrumental", defaultLabel: "instrumental.mp3" },
+  acapella:     { inputId: "fAcapella",     dropId: "dropAcapella",     labelId: "txtAcapella",     defaultLabel: "acapella.mp3" },
+  commentary:   { inputId: "fCommentary",   dropId: "dropCommentary",   labelId: null,              defaultLabel: "commentary.mp3" },
+};
+
+const fileFields = {};
+
+/* ---------- Поля формы ---------- */
+const F = {
+  title:    $("fTitle"),
+  artist:   $("fArtist"),
+  album:    $("fAlbum"),
+  year:     $("fYear"),
+  genre:    $("fGenre"),
+  lyrics:   $("fLyrics"),
+  chapters: $("fChapters"),
+  credits:  $("fCredits"),
+};
+
+let customSoundpacks = [];
+let lyricsFormat = null;
+const queue = [];
+
+/* ---------- Инициализация файловых полей ---------- */
+function initFileFields(){
+  Object.entries(FILE_FIELDS).forEach(([key, meta]) => {
+    const input = $(meta.inputId);
+    const drop  = $(meta.dropId);
+    if (!input || !drop) {
+      console.warn("Missing element for", key, meta.inputId, meta.dropId);
+      return;
+    }
+    fileFields[key] = { input, drop, labelId: meta.labelId, file: null, defaultLabel: meta.defaultLabel };
+
+    input.addEventListener("change", () => {
+      const f = input.files[0];
+      fileFields[key].file = f || null;
+      const txtEl = meta.labelId ? $(meta.labelId) : drop.querySelector(".fd-text");
+      const hintEl = drop.querySelector(".fd-hint");
+
+      if (f) {
+        const sizeInfo = f.size > 1024*1024
+          ? `${(f.size/1024/1024).toFixed(1)} МБ`
+          : `${(f.size/1024).toFixed(0)} КБ`;
+
+        if (txtEl) txtEl.textContent = `✓ ${f.name}`;
+        if (hintEl) hintEl.textContent = sizeInfo;
+        drop.classList.add("filled");
+      } else {
+        if (txtEl) txtEl.textContent = meta.defaultLabel;
+        drop.classList.remove("filled");
+      }
+    });
+  });
+}
+initFileFields();
+
+/* ---------- Переключение типа ---------- */
+$("typeSwitch").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-type]");
+  if (!btn) return;
+  const t = btn.dataset.type;
+  if (t === packType) return;
+  setPackType(t);
+});
+
+function setPackType(t){
+  packType = t;
+
+  document.querySelectorAll("#typeSwitch button").forEach(b => {
+    b.classList.toggle("active", b.dataset.type === t);
+  });
+
+  const isVpz = (t === "vpz");
+
+  // Показать/скрыть блоки
+  const musicCard = $("musicCard");
+  const videoCard = $("videoCard");
+  const chaptersField = $("chaptersField");
+  if (musicCard)    musicCard.style.display = isVpz ? "none" : "";
+  if (videoCard)    videoCard.style.display = isVpz ? "" : "none";
+  if (chaptersField) chaptersField.style.display = isVpz ? "" : "none";
+
+  // Заголовки
+  const setTxt = (id, text) => { const el = $(id); if (el) el.textContent = text; };
+  setTxt("lblTitle",  isVpz ? "Название видео *" : "Название трека *");
+  setTxt("lblArtist", isVpz ? "Автор *" : "Исполнитель *");
+  setTxt("lblAlbum",  isVpz ? "Серия / Альбом" : "Альбом");
+  setTxt("lblGenre",  isVpz ? "Категория (через запятую)" : "Жанр (через запятую)");
+  setTxt("coverHint", isVpz ? "Рекомендуется 16:9, от 1280×720" : "Рекомендуется квадратная, от 640×640");
+  setTxt("lyricsCardTitle", isVpz ? "Субтитры (subtitles/)" : "Текст песни (lyrics/)");
+  setTxt("lblLyrics", isVpz ? "Субтитры (TTML / VTT / SRT)" : "Текст (LRC / TTML / TXT)");
+  setTxt("spHint", isVpz
+    ? "Если озвучка одна — оставь пустым, звук в видео. Если есть дубляжи — добавь каждый отдельно."
+    : "Если у трека есть минус, акапелла или комментарий — добавь сюда.");
+
+  setTxt("lblSp1", isVpz ? "Озвучка (ru)" : "Инструментал (минус)");
+  setTxt("lblSp2", isVpz ? "Озвучка (en)" : "Акапелла");
+
+  // Обновляем дефолтные подписи
+  FILE_FIELDS.instrumental.defaultLabel = isVpz ? "ru.mp3" : "instrumental.mp3";
+  FILE_FIELDS.acapella.defaultLabel     = isVpz ? "en.mp3" : "acapella.mp3";
+
+  if (fileFields.instrumental && !fileFields.instrumental.file) {
+    const el = $("txtInstrumental");
+    if (el) el.textContent = FILE_FIELDS.instrumental.defaultLabel;
+  }
+  if (fileFields.acapella && !fileFields.acapella.file) {
+    const el = $("txtAcapella");
+    if (el) el.textContent = FILE_FIELDS.acapella.defaultLabel;
+  }
+
+  // Сброс
+  resetForm();
+  updateBuildButton();
+}
+
+/* ---------- Импорт текста ---------- */
+function showLyricsStatus(text, color){
+  const el = $("lyricsStatus");
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = color || "var(--accent-2)";
+  el.style.display = "block";
+  clearTimeout(showLyricsStatus._t);
+  showLyricsStatus._t = setTimeout(()=>{ el.style.display="none"; }, 5000);
+}
+
+async function importLyricsFile(file, ext){
+  try {
+    const text = await file.text();
+    F.lyrics.value = text;
+    lyricsFormat = ext;
+    let info = "";
+    if (ext === "lrc") {
+      const lines = text.split("\n").filter(l=>/\[\d+:\d+(?:\.\d+)?\]/.test(l));
+      info = `📥 .lrc — ${lines.length} строк`;
+    } else if (ext === "ttml") info = `📥 .ttml — ${(text.length/1024).toFixed(1)} КБ`;
+    else if (ext === "vtt")  info = `📥 .vtt — ${(text.length/1024).toFixed(1)} КБ`;
+    else if (ext === "srt")  info = `📥 .srt — ${(text.length/1024).toFixed(1)} КБ`;
+    else info = `📥 .txt — ${text.split("\n").filter(l=>l.trim()).length} строк`;
+    showLyricsStatus(`${info} (${file.name})`);
+  } catch(err){
+    showLyricsStatus("⚠ Ошибка: " + err.message, "var(--danger)");
+  }
+}
+
+["importLrc","importTtml","importVtt","importSrt","importTxt"].forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener("change", (e) => {
+    const f = e.target.files[0];
+    if (f) {
+      const ext = id.replace("import", "").toLowerCase();
+      importLyricsFile(f, ext);
+    }
+    e.target.value = "";
+  });
+});
+
+$("clearLyricsBtn").addEventListener("click", ()=>{
+  F.lyrics.value = "";
+  lyricsFormat = null;
+  showLyricsStatus("Очищено","var(--dim)");
+});
+
+/* ---------- Кастомные soundpack'и ---------- */
+const customSoundpacksEl = $("customSoundpacks");
+$("addSoundpackBtn").addEventListener("click", ()=>{
+  const id = prompt("ID дорожки (латиницей, без пробелов):");
+  if (!id) return;
+  const label = prompt("Отображаемое название:") || id;
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "audio/*";
+  input.addEventListener("change", ()=>{
+    const f = input.files[0];
+    if (!f) return;
+    customSoundpacks.push({ id, label, file: f });
+    renderCustomSoundpacks();
+  });
+  input.click();
+});
+
+function renderCustomSoundpacks(){
+  customSoundpacksEl.innerHTML = "";
+  customSoundpacks.forEach((sp, i) => {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel-2);border-radius:8px;margin-bottom:6px;";
+    row.innerHTML = `<span style="flex:1;font-size:13px;">🎵 <b>${escapeHtml(sp.id)}</b> — ${escapeHtml(sp.label)}</span>
+      <span style="font-size:11px;color:var(--dim);">${(sp.file.size/1024).toFixed(0)} КБ</span>
+      <button class="btn btn-ghost btn-sm">✕</button>`;
+    row.querySelector("button").onclick = ()=>{ customSoundpacks.splice(i,1); renderCustomSoundpacks(); };
+    customSoundpacksEl.appendChild(row);
+  });
+}
+
+/* ---------- Утилиты ---------- */
+function setStatus(t){ $("status").textContent = t; }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function sanitize(s){ return String(s || "").replace(/[\\/:*?"<>|]/g, "_").trim() || "track"; }
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); }
+
+/* ---------- Очередь ---------- */
+function renderQueue(){
+  const queueBadgeEl = $("queueBadge");
+  const queueListEl  = $("queueList");
+  const queueTitle   = $("queueTitle");
+
+  queueBadgeEl.textContent = queue.length;
+  queueListEl.innerHTML = "";
+  queueTitle.textContent = packType === "vpz" ? "📚 Очередь видео" : "📚 Очередь треков";
+
+  if (queue.length === 0) {
+    queueListEl.innerHTML = `<div class="queue-empty">Очередь пуста.<br>Заполни форму слева.</div>`;
+    updateBuildButton();
+    return;
+  }
+  updateBuildButton();
+
+  queue.forEach((item, idx) => {
+    const div = document.createElement("div");
+    div.className = "queue-item";
+    let sub = "";
+    if (item.kind === "video") {
+      const q = [];
+      if (item.video.v480) q.push("480p");
+      if (item.video.v720) q.push("720p");
+      if (item.video.v1080) q.push("1080p");
+      sub = `${escapeHtml(item.meta.artist || "—")} • ${q.join(" / ") || "нет видео"}`;
+    } else {
+      const q = [];
+      if (item.music.mq) q.push("MQ");
+      if (item.music.hq) q.push("HQ");
+      if (item.music.hifi) q.push("Hi-Fi");
+      sub = `${escapeHtml(item.meta.artist || "—")} • ${q.join(" / ") || "нет аудио"}`;
+    }
+    const spCount = Object.keys(item.soundpack || {}).length;
+    if (spCount) sub += ` • +${spCount} sp`;
+
+    div.innerHTML = `
+      <img src="${item.coverUrl || ""}" alt="" onerror="this.style.opacity=.2">
+      <div class="qi-meta">
+        <div class="qi-title">${escapeHtml(item.meta.title)} <span style="font-size:9px;background:var(--panel-3);padding:1px 5px;border-radius:4px;color:var(--dim);margin-left:4px;">${item.kind.toUpperCase()}</span></div>
+        <div class="qi-sub">${sub}</div>
+      </div>
+      <button class="qi-remove" title="Удалить">✕</button>`;
+    div.querySelector(".qi-remove").onclick = ()=>{ queue.splice(idx,1); renderQueue(); };
+    queueListEl.appendChild(div);
+  });
+}
+
+function updateBuildButton(){
+  const buildBtn = $("buildBtn");
+  if (queue.length === 0) {
+    buildBtn.disabled = true;
+    buildBtn.textContent = packType === "vpz" ? "💾 Собрать и скачать .vpz" : "💾 Собрать и скачать .mpz";
+    return;
+  }
+  buildBtn.disabled = false;
+  if (packType === "vpz") {
+    buildBtn.textContent = `💾 Собрать и скачать .vpz (${queue.length})`;
+  } else {
+    buildBtn.textContent = queue.length === 1
+      ? "💾 Собрать и скачать (.mp1m / .mpz)"
+      : `💾 Собрать и скачать .mpz (${queue.length})`;
+  }
+}
+
+/* ---------- Сброс формы ---------- */
+function resetForm(){
+  Object.values(F).forEach(el => { if (el) el.value = ""; });
+  Object.entries(fileFields).forEach(([k, ff]) => {
+    if (ff.input) ff.input.value = "";
+    ff.file = null;
+    ff.drop.classList.remove("filled");
+    const txtEl = ff.labelId ? $(ff.labelId) : ff.drop.querySelector(".fd-text");
+    if (txtEl) txtEl.textContent = ff.defaultLabel;
+    const hintEl = ff.drop.querySelector(".fd-hint");
+    if (hintEl && k === "cover") hintEl.textContent = packType === "vpz" ? "Рекомендуется 16:9, от 1280×720" : "Рекомендуется квадратная, от 640×640";
+  });
+  customSoundpacks = [];
+  renderCustomSoundpacks();
+  lyricsFormat = null;
+  const ls = $("lyricsStatus");
+  if (ls) ls.style.display = "none";
+}
+
+/* ---------- Добавить в очередь ---------- */
+$("addBtn").addEventListener("click", ()=>{
+  const title = F.title.value.trim();
+  const artist = F.artist.value.trim();
+
+  if (!title || !artist) {
+    alert(packType === "vpz"
+      ? "Заполните «Название видео» и «Автор»."
+      : "Заполните «Название трека» и «Исполнитель».");
+    F.title.focus();
+    return;
+  }
+
+  if (packType === "mpz") {
+    const anyMusic = (fileFields.mq && fileFields.mq.file)
+                  || (fileFields.hq && fileFields.hq.file)
+                  || (fileFields.hifi && fileFields.hifi.file);
+    if (!anyMusic) { alert("Загрузите хотя бы один файл музыки (MQ / HQ / Hi-Fi)."); return; }
+  } else {
+    const anyVideo = (fileFields.v480 && fileFields.v480.file)
+                  || (fileFields.v720 && fileFields.v720.file)
+                  || (fileFields.v1080 && fileFields.v1080.file);
+    if (!anyVideo) { alert("Загрузите хотя бы один видео-файл (480p / 720p / 1080p)."); return; }
+  }
+
+  let coverUrl = null;
+  if (fileFields.cover && fileFields.cover.file) coverUrl = URL.createObjectURL(fileFields.cover.file);
+
+  const soundpack = {};
+  if (fileFields.instrumental && fileFields.instrumental.file) {
+    const key = packType === "vpz" ? "ru" : "instrumental";
+    const lbl = packType === "vpz" ? "Озвучка (ru)" : "Минус";
+    soundpack[key] = { file: fileFields.instrumental.file, label: lbl };
+  }
+  if (fileFields.acapella && fileFields.acapella.file) {
+    const key = packType === "vpz" ? "en" : "acapella";
+    const lbl = packType === "vpz" ? "Озвучка (en)" : "Акапелла";
+    soundpack[key] = { file: fileFields.acapella.file, label: lbl };
+  }
+  if (fileFields.commentary && fileFields.commentary.file) {
+    soundpack.commentary = { file: fileFields.commentary.file, label: "Комментарий" };
+  }
+  customSoundpacks.forEach(sp => { soundpack[sp.id] = { file: sp.file, label: sp.label }; });
+
+  const chapters = [];
+  if (packType === "vpz" && F.chapters.value) {
+    F.chapters.value.split("\n").forEach(line => {
+      const m = line.match(/^(\d{1,2}):(\d{2})\s+(.+)$/);
+      if (m) chapters.push({ time: parseInt(m[1])*60 + parseInt(m[2]), title: m[3].trim() });
+    });
+  }
+
+  const meta = {
+    format_version: "1.0",
+    type: packType === "vpz" ? "video" : "music",
+    id: uuid(),
+    title, artist,
+    album: F.album.value.trim() || undefined,
+    year: F.year.value ? Number(F.year.value) : undefined,
+    genre: F.genre.value.trim() ? F.genre.value.split(",").map(s=>s.trim()).filter(Boolean) : undefined,
+    added_at: new Date().toISOString(),
+    chapters: chapters.length ? chapters : undefined,
+  };
+
+  const item = {
+    kind: packType === "vpz" ? "video" : "audio",
+    meta,
+    cover: fileFields.cover ? fileFields.cover.file : null,
+    coverUrl,
+    soundpack,
+    lyrics: F.lyrics.value.trim() || null,
+    lyricsFormat,
+    credits: F.credits.value.trim() || null,
+  };
+
+  if (packType === "mpz") {
+    item.music = {
+      mq:   fileFields.mq ? fileFields.mq.file : null,
+      hq:   fileFields.hq ? fileFields.hq.file : null,
+      hifi: fileFields.hifi ? fileFields.hifi.file : null,
+    };
+  } else {
+    item.video = {
+      v480:  fileFields.v480 ? fileFields.v480.file : null,
+      v720:  fileFields.v720 ? fileFields.v720.file : null,
+      v1080: fileFields.v1080 ? fileFields.v1080.file : null,
+    };
+  }
+
+  queue.push(item);
+  resetForm();
+  renderQueue();
+  setStatus(`✅ Добавлено: «${title}». Всего: ${queue.length}`);
+});
+
+/* ---------- Очистить всё ---------- */
+$("clearAllBtn").addEventListener("click", ()=>{
+  if (queue.length === 0) { setStatus("Очередь уже пуста."); return; }
+  if (!confirm(`Удалить все ${queue.length} элемент(ов)?`)) return;
+  queue.length = 0;
+  renderQueue();
+  setStatus("Очередь очищена.");
+});
+
+/* ---------- Экспорт ---------- */
+$("buildBtn").addEventListener("click", ()=>{
+  if (queue.length === 0) return;
+  if (packType === "mpz" && queue.length === 1){
+    $("exportCount").textContent = "1";
+    $("exportModal").classList.add("open");
+    return;
+  }
+  exportAs();
+});
+
+$("exportMp1mBtn").addEventListener("click", ()=>{ $("exportModal").classList.remove("open"); exportAs(".mp1m"); });
+$("exportMpzBtn").addEventListener("click",  ()=>{ $("exportModal").classList.remove("open"); exportAs(".mpz"); });
+$("cancelExportBtn").addEventListener("click", ()=> $("exportModal").classList.remove("open"));
+$("exportModal").addEventListener("click", (e)=>{ if (e.target === $("exportModal")) $("exportModal").classList.remove("open"); });
+
+async function exportAs(forceExt){
+  if (queue.length === 0) return;
+
+  let ext = forceExt;
+  if (!ext) ext = packType === "vpz" ? ".vpz" : ".mpz";
+  if (packType === "mpz" && queue.length === 1 && !forceExt) ext = ".mpz";
+
+  const buildBtn = $("buildBtn");
+  buildBtn.disabled = true;
+  buildBtn.textContent = "⏳ Сборка…";
+  setStatus(`Сборка ${ext}-архива…`);
+
+  try {
+    const zip = new JSZip();
+
+    for (let i = 0; i < queue.length; i++){
+      const item = queue[i];
+      const folder = (item.kind === "video" ? "video" : "music") + (i + 1);
+
+      const metaOut = JSON.parse(JSON.stringify(item.meta));
+      Object.keys(metaOut).forEach(k => { if (metaOut[k] === undefined) delete metaOut[k]; });
+
+      const spKeys = Object.keys(item.soundpack || {});
+      if (spKeys.length){
+        metaOut.soundpack = spKeys.map((k, idx) => ({
+          id: k,
+          label: item.soundpack[k].label || k,
+          file: `soundpack/${k}.mp3`,
+          default: idx === 0,
+        }));
+      }
+
+      if (item.kind === "video"){
+        const q = [];
+        if (item.video.v480)  q.push("480");
+        if (item.video.v720)  q.push("720");
+        if (item.video.v1080) q.push("1080");
+        metaOut.video = {
+          qualities: q,
+          default: q.includes("720") ? "720" : q[q.length-1],
+          has_embedded_audio: spKeys.length === 0,
+        };
+      }
+
+      zip.file(`${folder}/meta-data`, JSON.stringify(metaOut, null, 2));
+
+      if (item.cover){
+        const name = item.cover.name.toLowerCase();
+        let ce = "jpg";
+        if (name.endsWith(".png")) ce = "png";
+        else if (name.endsWith(".webp")) ce = "webp";
+        zip.file(`${folder}/cover/cover.${ce}`, item.cover);
+      }
+
+      if (item.kind === "audio"){
+        if (item.music.mq)   zip.file(`${folder}/music/music.mp192`, item.music.mq);
+        if (item.music.hq)   zip.file(`${folder}/music/music.mp3`,   item.music.hq);
+        if (item.music.hifi) zip.file(`${folder}/music/music.ogg`,   item.music.hifi);
+      } else {
+        if (item.video.v480)  zip.file(`${folder}/video/video_480.mp4`,  item.video.v480);
+        if (item.video.v720)  zip.file(`${folder}/video/video_720.mp4`,  item.video.v720);
+        if (item.video.v1080) zip.file(`${folder}/video/video_1080.mp4`, item.video.v1080);
+      }
+
+      for (const [k, v] of Object.entries(item.soundpack || {})){
+        if (v.file) zip.file(`${folder}/soundpack/${k}.mp3`, v.file);
+      }
+
+      if (item.lyrics){
+        let lext = item.lyricsFormat || null;
+        if (!lext){
+          if (/<tt[\s>]/.test(item.lyrics.slice(0,500))) lext = "ttml";
+          else if (/^WEBVTT/.test(item.lyrics.trim().slice(0,10))) lext = "vtt";
+          else if (/^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}\s*-->/.test(item.lyrics)) lext = "srt";
+          else if (/\[\d+:\d+(?:\.\d+)?\]/.test(item.lyrics)) lext = "lrc";
+          else lext = "txt";
+        }
+        const dir = item.kind === "audio" ? "lyrics" : "subtitles";
+        zip.file(`${folder}/${dir}/track_01.${lext}`, item.lyrics);
+      }
+
+      if (item.credits) zip.file(`${folder}/extras/credits.txt`, item.credits);
+
+      if (item.kind === "audio"){
+        const q = [];
+        if (item.music.mq)   q.push(192);
+        if (item.music.hq)   q.push(320);
+        if (item.music.hifi) q.push(440);
+        if (q.length){
+          zip.file(`${folder}/extras/min_quality.data`, String(Math.min(...q)));
+          zip.file(`${folder}/extras/max_quality.data`, String(Math.max(...q)));
+        }
+      } else {
+        const q = [];
+        if (item.video.v480)  q.push(480);
+        if (item.video.v720)  q.push(720);
+        if (item.video.v1080) q.push(1080);
+        if (q.length){
+          zip.file(`${folder}/extras/min_quality.data`, String(Math.min(...q)));
+          zip.file(`${folder}/extras/max_quality.data`, String(Math.max(...q)));
+        }
+        if (item.meta.chapters && item.meta.chapters.length){
+          zip.file(`${folder}/extras/chapters.json`, JSON.stringify(item.meta.chapters, null, 2));
+        }
+      }
+    }
+
+    const blob = await zip.generateAsync(
+      { type:"blob", compression:"DEFLATE", compressionOptions:{ level: 6 } },
+      (meta)=>{ buildBtn.textContent = `⏳ ${meta.percent.toFixed(0)}%`; }
+    );
+
+    let name;
+    if (queue.length === 1){
+      name = `${sanitize(queue[0].meta.artist)} - ${sanitize(queue[0].meta.title)}${ext}`;
+    } else {
+      const prefix = packType === "vpz" ? "videoalbum" : "album";
+      name = `${prefix}_${Date.now()}${ext}`;
+    }
+
+    downloadBlob(blob, name);
+    setStatus(`✅ Создан «${name}» (${(blob.size/1024/1024).toFixed(2)} МБ)`);
+    buildBtn.textContent = packType === "vpz" ? "💾 Собрать и скачать .vpz" : "💾 Собрать и скачать .mpz";
+    buildBtn.disabled = false;
+  } catch(err){
+    console.error(err);
+    alert("Ошибка сборки: " + err.message);
+    buildBtn.textContent = packType === "vpz" ? "💾 Собрать и скачать .vpz" : "💾 Собрать и скачать .mpz";
+    buildBtn.disabled = false;
+  }
+}
+
+/* ---------- Импорт пакета ---------- */
+$("importInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus(`📥 Импорт ${file.name}…`);
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const rootFolders = new Set();
+    zip.forEach((path)=>{
+      const top = path.split("/")[0];
+      if (top && !top.startsWith(".")) rootFolders.add(top);
+    });
+
+    let imported = 0;
+    for (const folder of rootFolders){
+      const metaFile = zip.file(`${folder}/meta-data`);
+      if (!metaFile) continue;
+      const meta = JSON.parse(await metaFile.async("string"));
+
+      const hasVideo = zip.file(new RegExp(`^${folder}/video/.*\\.(mp4|webm)$`)).length > 0;
+      const hasMusic = zip.file(new RegExp(`^${folder}/(music|audio)/.*\\.(mp3|ogg|mp192)$`)).length > 0;
+      const kind = hasVideo ? "video" : (hasMusic ? "audio" : null);
+      if (!kind) continue;
+
+      let coverFile = null, coverUrl = null;
+      for (const ext of ["jpg","jpeg","png","webp"]){
+        const f = zip.file(`${folder}/cover/cover.${ext}`);
+        if (f){
+          const blob = await f.async("blob");
+          coverFile = new File([blob], `cover.${ext}`, { type: blob.type || "image/jpeg" });
+          coverUrl = URL.createObjectURL(blob);
+          break;
+        }
+      }
+
+      const musicFiles = {}, videoFiles = {};
+      if (kind === "audio"){
+        const map = { mq:`${folder}/music/music.mp192`, hq:`${folder}/music/music.mp3`, hifi:`${folder}/music/music.ogg` };
+        const oldMap = { mq:`${folder}/audio/music.mp192`, hq:`${folder}/audio/music.mp3`, hifi:`${folder}/audio/music.ogg` };
+        for (const k of Object.keys(map)){
+          let f = zip.file(map[k]) || zip.file(oldMap[k]);
+          if (f){
+            const blob = await f.async("blob");
+            musicFiles[k] = new File([blob], map[k].split("/").pop(), { type: blob.type || "audio/mpeg" });
+          }
+        }
+      } else {
+        const map = { v480:`${folder}/video/video_480.mp4`, v720:`${folder}/video/video_720.mp4`, v1080:`${folder}/video/video_1080.mp4` };
+        for (const [k, p] of Object.entries(map)){
+          const f = zip.file(p);
+          if (f){
+            const blob = await f.async("blob");
+            videoFiles[k] = new File([blob], p.split("/").pop(), { type: "video/mp4" });
+          }
+        }
+      }
+
+      let lyrics = null, lyricsFormatFromZip = null;
+      const lyricsDir = kind === "audio" ? "lyrics" : "subtitles";
+      for (const ext of ["lrc","ttml","vtt","srt","txt"]){
+        const f = zip.file(new RegExp(`^${folder}/${lyricsDir}/.*\\.${ext}$`))[0];
+        if (f){ lyrics = await f.async("string"); lyricsFormatFromZip = ext; break; }
+      }
+
+      let credits = null;
+      const cf = zip.file(`${folder}/extras/credits.txt`);
+      if (cf) credits = await cf.async("string");
+
+      queue.push({
+        kind,
+        meta: {
+          format_version: meta.format_version || "1.0",
+          type: meta.type || (kind === "video" ? "video" : "music"),
+          id: meta.id || uuid(),
+          title: meta.title || folder,
+          artist: meta.artist || "—",
+          album: meta.album || undefined,
+          year: meta.year || undefined,
+          genre: meta.genre || undefined,
+          chapters: meta.chapters || undefined,
+          added_at: meta.added_at || new Date().toISOString(),
+        },
+        cover: coverFile, coverUrl,
+        music: musicFiles,
+        video: videoFiles,
+        soundpack: {},
+        lyrics, lyricsFormat: lyricsFormatFromZip,
+        credits,
+      });
+      imported++;
+    }
+
+    renderQueue();
+    setStatus(`✅ Импортировано ${imported} элемент(ов) из ${file.name}`);
+  } catch(err){
+    console.error(err);
+    setStatus("⚠ Ошибка импорта: " + err.message);
+  }
+  e.target.value = "";
+});
+
+/* ---------- Старт ---------- */
+setPackType("mpz");
+renderQueue();
+</script>
+</body>
+</html>
